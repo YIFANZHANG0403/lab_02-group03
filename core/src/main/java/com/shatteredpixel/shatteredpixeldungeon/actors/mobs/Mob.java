@@ -21,6 +21,7 @@
 
 package com.shatteredpixel.shatteredpixeldungeon.actors.mobs;
 
+import com.shatteredpixel.shatteredpixeldungeon.utils.MobBehaviorLogger// add code 1
 import com.shatteredpixel.shatteredpixeldungeon.Assets;
 import com.shatteredpixel.shatteredpixeldungeon.Badges;
 import com.shatteredpixel.shatteredpixeldungeon.Challenges;
@@ -115,6 +116,65 @@ public abstract class Mob extends Char {
 	public AiState PASSIVE		= new Passive();
 	public AiState state = SLEEPING;
 	
+	protected void setState(AiState newState, String reason) { // add code 2
+    if (newState == null || state == newState) {
+        return;
+    }
+
+    String oldStateName = stateName(state);
+    String newStateName = stateName(newState);
+
+    state = newState;
+
+    MobBehaviorLogger.logStateTransition(this, oldStateName, newStateName, reason);
+}
+
+protected void setTargetCell(int newTarget, String reason) {
+    if (target == newTarget) {
+        return;
+    }
+
+    target = newTarget;
+
+    MobBehaviorLogger.logTargetCell(this, newTarget, reason);
+}
+
+protected void setEnemy(Char newEnemy, String reason) {
+    if (enemy == newEnemy) {
+        return;
+    }
+
+    enemy = newEnemy;
+
+    MobBehaviorLogger.logTargetAssignment(this, newEnemy, reason);
+}
+
+protected void setAlerted(boolean value, String reason) {
+    if (alerted == value) {
+        return;
+    }
+
+    alerted = value;
+
+    MobBehaviorLogger.logAlertStatus(this, value, reason);
+}
+
+protected String stateName(AiState aiState) {
+    if (aiState == SLEEPING) {
+        return "SLEEPING";
+    } else if (aiState == WANDERING) {
+        return "WANDERING";
+    } else if (aiState == HUNTING) {
+        return "HUNTING";
+    } else if (aiState == FLEEING) {
+        return "FLEEING";
+    } else if (aiState == PASSIVE) {
+        return "PASSIVE";
+    } else {
+        return aiState == null ? "null" : aiState.getClass().getSimpleName();
+    }
+}
+	
 	public Class<? extends CharSprite> spriteClass;
 	
 	protected int target = -1;
@@ -134,6 +194,7 @@ public abstract class Mob extends Char {
 	protected boolean firstAdded = true;
 	protected void onAdd(){
 		if (firstAdded) {
+			MobBehaviorLogger.logMobSpawn(this); // add code 3
 			//modify health for ascension challenge if applicable, only on first add
 			float percent = HP / (float) HT;
 			HT = Math.round(HT * AscensionChallenge.statModifier(this));
@@ -237,7 +298,7 @@ public abstract class Mob extends Char {
 		}
 
 		if (buff(Terror.class) != null || buff(Dread.class) != null ){
-			state = FLEEING;
+			setState(FLEEING, "Mob affected by Terror or Dread"); // add code 4
 		}
 		
 		enemy = chooseEnemy();
@@ -438,11 +499,11 @@ public abstract class Mob extends Char {
 	public boolean add( Buff buff ) {
 		if (super.add( buff )) {
 			if (buff instanceof Amok || buff instanceof AllyBuff) {
-				state = HUNTING;
+				setState(HUNTING, "Buff added: " + buff.getClass().getSimpleName()); // add code 5
 			} else if (buff instanceof Terror || buff instanceof Dread) {
-				state = FLEEING;
+				setState(FLEEING, "Buff added: " + buff.getClass().getSimpleName());
 			} else if (buff instanceof Sleep) {
-				state = SLEEPING;
+				setState(SLEEPING, "Buff added: Sleep");
 				postpone(Sleep.SWS);
 			}
 			return true;
